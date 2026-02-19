@@ -1,0 +1,77 @@
+# =============================================================================
+# 自動化金融新聞情報系統 — 使用者設定檔
+# 修改此檔後無需重新 build Docker image，直接 run 即可生效
+# =============================================================================
+
+# 關鍵字與權重（分數越高越優先送入 AI 摘要）
+keywords:
+  台積電: 10
+  TSMC: 10
+  製程: 7
+  3nm: 8
+  2nm: 8
+  營收: 6
+  毛利率: 6
+  降息: 7
+  Fed: 7
+  聯準會: 7
+  關稅: 8
+  tariff: 8
+  AI 伺服器: 9
+  AI server: 9
+  NVIDIA: 8
+  輝達: 8
+  半導體: 7
+  semiconductor: 7
+  CoWoS: 9
+  HBM: 8
+  台股: 5
+  加權指數: 5
+  聯發科: 7
+  MediaTek: 7
+
+# 過濾門檻：低於此分數的文章不送入 AI
+min_score: 5
+
+# 送入 Gemini 的文章上限
+max_articles: 50
+
+# Gemini 模型名稱
+gemini_model: "gemini-1.5-flash"
+
+# RSS 來源（名稱: URL）
+rss_feeds:
+  MoneyDJ: "https://www.moneydj.com/KMDJ/RSS/RSSFeed.aspx"
+  TechNews: "https://technews.tw/feed/"
+  BBC_Business: "http://feeds.bbci.co.uk/news/business/rss.xml"
+  BBC_Tech: "http://feeds.bbci.co.uk/news/technology/rss.xml"
+
+# 網頁爬蟲目標
+scrape_targets:
+  - name: "鉅亨網"
+    url: "https://news.cnyes.com/news/cat/tw_stock"
+    api_url: "https://api.cnyes.com/media/api/v1/newslist/category/tw_stock"
+    use_api: true
+  - name: "工商時報"
+    url: "https://www.ctee.com.tw/livenews/lf"
+    title_selector: ".title a"
+    link_selector: ".title a"
+
+# NewsAPI 設定（需在 .env 中設定 NEWSAPI_KEY）
+newsapi:
+  enabled: true
+  query: "TSMC OR semiconductor OR AI server OR Fed rate"
+  language: "en"
+  sort_by: "publishedAt"
+
+# 郵件收件人（機密的 SMTP 帳密在 .env 中設定）
+email:
+  recipients:
+    - user1@example.com
+  subject_prefix: "[金融情報]"
+
+# AI 摘要分類
+categories:
+  - "半導體與伺服器供應鏈"
+  - "台股大盤與上市櫃公司動態"
+  - "國際宏觀經濟（FED、通膨、關稅政策）"

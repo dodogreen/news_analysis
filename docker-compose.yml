@@ -1,0 +1,7 @@
+services:
+  news-digest:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro

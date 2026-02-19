@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.news.summary</string>
+
+    <!-- 請將路徑替換為你的實際路徑 -->
+    <!-- 用 `which docker` 確認 docker 路徑 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/docker</string>
+        <string>compose</string>
+        <string>-f</string>
+        <string>/Users/USERNAME/Downloads/news_analysis/docker-compose.yml</string>
+        <string>run</string>
+        <string>--rm</string>
+        <string>news-digest</string>
+    </array>
+
+    <!-- 每日 08:30 (盤前) 和 18:00 (盤後) 執行 -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>8</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>18</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/USERNAME/Downloads/news_analysis</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/news_summary.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/news_summary.err</string>
+</dict>
+</plist>
