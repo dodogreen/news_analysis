@@ -23,7 +23,7 @@ MIN_SCORE: int = _cfg.get("min_score", 5)
 MAX_ARTICLES: int = _cfg.get("max_articles", 50)
 
 # --- Gemini ---
-GEMINI_MODEL: str = _cfg.get("gemini_model", "gemini-1.5-flash")
+GEMINI_MODEL: str = _cfg.get("gemini_model", "gemini-2.5-flash")
 # GEMINI_API_KEY is read from env by google-genai SDK automatically
 
 # --- Data sources ---

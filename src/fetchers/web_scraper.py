@@ -79,7 +79,9 @@ def _scrape_html(target: dict) -> list[Article]:
         return []
 
     resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        logger.warning("Scrape %s returned HTTP %d, skipping", name, resp.status_code)
+        return []
     resp.encoding = resp.apparent_encoding  # handle Big5/UTF-8 correctly
 
     soup = BeautifulSoup(resp.text, "lxml")

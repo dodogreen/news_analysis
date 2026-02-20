@@ -5,14 +5,13 @@
 
 # 關鍵字與權重（分數越高越優先送入 AI 摘要）
 keywords:
-  鴻海: 10
-  長榮: 10
-  零壹: 10
-  台化: 10
-  東元: 10
   台積電: 10
   TSMC: 10
   製程: 7
+  3nm: 8
+  2nm: 8
+  營收: 6
+  毛利率: 6
   降息: 7
   Fed: 7
   聯準會: 7
@@ -35,7 +34,7 @@ keywords:
 min_score: 5
 
 # 送入 Gemini 的文章上限
-max_articles: 100
+max_articles: 50
 
 # Gemini 模型名稱
 gemini_model: "gemini-2.5-flash"
@@ -68,8 +67,7 @@ newsapi:
 # 郵件收件人（機密的 SMTP 帳密在 .env 中設定）
 email:
   recipients:
-    - jasonhung999@gmail.com
-    - jasonhung9999@gmail.com
+    - user1@example.com
   subject_prefix: "[金融情報]"
 
 # AI 摘要分類

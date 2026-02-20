@@ -20,12 +20,13 @@ Automated Financial News Intelligence System (自動化金融新聞情報系統)
 | `Dockerfile` | Python 3.11-slim image, installs system deps for lxml compilation (gcc, libxml2-dev, libxslt1-dev) |
 | `docker-compose.yml` | Mounts `config.yaml` (read-only) + loads `.env` secrets, no restart policy (one-shot) |
 | `requirements.txt` | 8 Python packages: google-genai, feedparser, beautifulsoup4, lxml, requests, Jinja2, PyYAML, python-dateutil |
+| `config_example.yaml` | User settings template: keywords, news sources, email recipients, filter params. Copy to `config.yaml` to use |
 | `.env.example` | Secrets template: GEMINI_API_KEY, NEWSAPI_KEY, SMTP host/port/user/password, EMAIL_FROM |
-| `.gitignore` | Excludes .env, `__pycache__/`, .venv, .DS_Store, logs/ |
+| `.gitignore` | Excludes .env, config.yaml, `__pycache__/`, .venv, .DS_Store, logs/ |
 
 ## User Configuration
 
-### `config.yaml` — user-editable settings, mounted into container via docker-compose volume
+### `config.yaml` — user-editable settings (gitignored, copied from `config_example.yaml`)
 
 | Section | Description |
 |---------|-------------|
@@ -83,20 +84,23 @@ RSS/Web Sources → Local Keyword Filter → Gemini 1.5 Flash → Jinja2 HTML Em
 ## Usage
 
 ```bash
-# 1. Copy .env template and fill in your API keys and SMTP credentials
+# 1. Copy templates and fill in your settings
+cp config_example.yaml config.yaml
 cp .env.example .env
-vi .env
 
 # 2. Edit config.yaml to set keywords, news sources, and recipient email addresses
 vi config.yaml
 
-# 3. Build Docker image
+# 3. Edit .env to fill in API keys and SMTP credentials
+vi .env
+
+# 4. Build Docker image
 docker compose build
 
-# 4. Run the full pipeline (container runs once then exits)
+# 5. Run the full pipeline (container runs once then exits)
 docker compose run --rm news-digest
 
-# 5. (Optional) Set up launchd scheduling
+# 6. (Optional) Set up launchd scheduling
 #    - Edit launchd/com.news.summary.plist: replace USERNAME, verify docker path
 cp launchd/com.news.summary.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.news.summary.plist
