@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from src import config
 from src.email_sender import render_email, send_email
@@ -53,7 +53,7 @@ def main() -> None:
             logger.warning("No articles passed filter")
 
         # Step 4: Render and send email
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        now = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M")
         html = render_email(summary, filtered, now)
         subject = f"{config.EMAIL_SUBJECT_PREFIX} {now[:10]} 每日摘要"
         send_email(html, subject)
