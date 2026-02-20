@@ -1,0 +1,35 @@
+name: News Digest
+
+on:
+  schedule:
+    # UTC 時間：台灣 08:30 = UTC 00:30，台灣 18:00 = UTC 10:00
+    - cron: '30 0 * * *'
+    - cron: '0 10 * * *'
+  workflow_dispatch: # 允許手動觸發
+
+jobs:
+  run-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
+
+      - name: Create config.yaml from secret
+        run: echo "${{ secrets.CONFIG_YAML }}" > config.yaml
+
+      - name: Run news digest pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        run: python -m src.main
