@@ -40,6 +40,7 @@ Automated Financial News Intelligence System (自動化金融新聞情報系統)
 | `newsapi` | NewsAPI.org settings: enabled flag, query string, language, sort order |
 | `email.recipients` | List of recipient email addresses |
 | `email.subject_prefix` | Email subject prefix (default: `[金融情報]`) |
+| `schedule_times` | List of UTC+8 times for GitHub Actions to run (e.g. `["08:30", "18:00"]`). Workflow runs every 30 min and checks against this list |
 | `categories` | AI summary categorization labels (半導體, 台股, 國際宏觀經濟) |
 
 ### `.env` — secrets (gitignored, never committed)
@@ -144,9 +145,14 @@ GitHub Actions 可讓 pipeline 在雲端自動執行，不需要本機開機或�
 
 ### Step 2: 自動排程
 
-Workflow 已設定 cron 排程，push 到 GitHub 後自動生效：
-- 每天 **08:30** 台灣時間（UTC 00:30）
-- 每天 **18:00** 台灣時間（UTC 10:00）
+Workflow 每 30 分鐘觸發一次，自動比對 `config.yaml` 中的 `schedule_times` 設定。只有命中的時間才會執行 pipeline。
+
+修改排程時間只需更新 GitHub Secret `CONFIG_YAML` 中的 `schedule_times` 欄位：
+```yaml
+schedule_times:
+  - "08:30"
+  - "18:00"
+```
 
 ### Step 3: 手動觸發（測試用）
 
@@ -157,6 +163,7 @@ Workflow 已設定 cron 排程，push 到 GitHub 後自動生效：
 
 ### 更新設定
 
+- **修改排程時間：** 更新 GitHub Secret `CONFIG_YAML` 中的 `schedule_times`（不需要改程式碼）
 - **修改關鍵字、收件人等設定：** 更新 GitHub Secret `CONFIG_YAML` 的內容
 - **修改 API 金鑰或 SMTP 密碼：** 更新對應的 GitHub Secret
 - 所有 secret 更新後，下次執行自動生效，不需要其他操作

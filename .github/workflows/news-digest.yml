@@ -2,14 +2,43 @@ name: News Digest
 
 on:
   schedule:
-    # UTC 時間：台灣 08:30 = UTC 00:30，台灣 18:00 = UTC 10:00
-    - cron: '30 0 * * *'
-    - cron: '0 10 * * *'
-  workflow_dispatch: # 允許手動觸發
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # 手動觸發，不受時間檢查限制
 
 jobs:
+  check-schedule:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Create config.yaml from secret
+        run: echo "${{ secrets.CONFIG_YAML }}" > config.yaml
+
+      - name: Check if current time matches schedule
+        id: check
+        run: |
+          CURRENT=$(TZ=Asia/Taipei date +%H:%M)
+          TIMES=$(python3 -c "
+          import yaml
+          with open('config.yaml') as f:
+              cfg = yaml.safe_load(f)
+          for t in cfg.get('schedule_times', []):
+              print(t)
+          ")
+          echo "Current UTC+8 time: $CURRENT"
+          echo "Configured times: $TIMES"
+          if echo "$TIMES" | grep -qx "$CURRENT"; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not a scheduled time, skipping"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   run-digest:
     runs-on: ubuntu-latest
+    needs: check-schedule
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.check-schedule.outputs.should_run == 'true')
     steps:
       - uses: actions/checkout@v4
 

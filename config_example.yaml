@@ -70,6 +70,11 @@ email:
     - user1@example.com
   subject_prefix: "[金融情報]"
 
+# 排程時間（UTC+8 台灣時間，格式 HH:MM，GitHub Actions 用）
+schedule_times:
+  - "08:30"
+  - "18:00"
+
 # AI 摘要分類
 categories:
   - "半導體與伺服器供應鏈"
