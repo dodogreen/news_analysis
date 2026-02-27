@@ -30,6 +30,9 @@ def _markdown_to_html(md_text: str) -> str:
             html_parts.append("<br>")
             continue
 
+        # Apply **bold** -> <strong> to all lines
+        stripped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", stripped)
+
         # ## Heading -> <h2>
         if stripped.startswith("## "):
             content = stripped[3:]
@@ -57,10 +60,8 @@ def _markdown_to_html(md_text: str) -> str:
                 f'<div style="margin:4px 0; padding-left:16px;">'
                 f'• {stripped[2:]}</div>'
             )
-        # **bold** -> <strong>
         else:
-            converted = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", stripped)
-            html_parts.append(f'<p style="margin:4px 0;">{converted}</p>')
+            html_parts.append(f'<p style="margin:4px 0;">{stripped}</p>')
 
     return "\n".join(html_parts)
 

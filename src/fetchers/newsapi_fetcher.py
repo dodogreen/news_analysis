@@ -5,14 +5,15 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
-import requests
 from dateutil import parser as dateparser
 
+from src.fetchers import create_session
 from src.models import Article
 
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://newsapi.org/v2/everything"
+_session = create_session()
 _TIMEOUT = 15
 
 
@@ -46,7 +47,7 @@ def fetch_newsapi_articles(config: dict, api_key: str) -> list[Article]:
     }
 
     try:
-        resp = requests.get(_BASE_URL, params=params, timeout=_TIMEOUT)
+        resp = _session.get(_BASE_URL, params=params, timeout=_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
 

@@ -83,4 +83,4 @@ def summarize_articles(articles: list[FilteredArticle]) -> str:
 
     except Exception:
         logger.exception("Gemini summarization failed")
-        return "⚠️ AI 摘要生成失敗，請查看下方原始新聞連結。"
+        raise

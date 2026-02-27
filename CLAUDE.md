@@ -4,19 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Automated Financial News Intelligence System (自動化金融新聞情報系統) — a Python pipeline that ingests financial news from multiple sources, filters by keywords, summarizes via Gemini 1.5 Flash, and delivers HTML email digests. Runs in Docker to avoid polluting the local macOS environment. Host launchd triggers `docker compose run --rm` on schedule.
+Automated Financial News Intelligence System (自動化金融新聞情報系統) — a Python pipeline that ingests financial news from multiple sources, filters by keywords, summarizes via Gemini, and delivers HTML email digests. Supports two execution modes: local Docker + launchd scheduling, or GitHub Actions cloud scheduling.
 
 ## Tech Stack
 
-- **Runtime:** Docker (python:3.11-slim), no local Python deps needed
+- **Runtime:** Python 3.11 (Docker or GitHub Actions)
 - **AI Engine:** `google-genai` SDK 1.0.0+ — uses `genai.Client()` (NOT the old `google-generativeai`)
-- **Scheduling:** macOS launchd triggers Docker container (sleep-aware, auto-resumes)
+- **Scheduling:** GitHub Actions cron (primary) or macOS launchd + Docker (local)
 - **Libraries:** feedparser, beautifulsoup4, lxml, requests, Jinja2, PyYAML, python-dateutil
 
 ## Infrastructure Files
 
 | File | Purpose |
 |------|---------|
+| `.github/workflows/news-digest.yml` | GitHub Actions workflow: cron schedule (08:30 & 18:00 UTC+8) + manual trigger |
 | `Dockerfile` | Python 3.11-slim image, installs system deps for lxml compilation (gcc, libxml2-dev, libxslt1-dev) |
 | `docker-compose.yml` | Mounts `config.yaml` (read-only) + loads `.env` secrets, no restart policy (one-shot) |
 | `requirements.txt` | 8 Python packages: google-genai, feedparser, beautifulsoup4, lxml, requests, Jinja2, PyYAML, python-dateutil |
@@ -33,7 +34,7 @@ Automated Financial News Intelligence System (自動化金融新聞情報系統)
 | `keywords` | Keyword → weight mapping (e.g. `台積電: 10`, `TSMC: 10`). Higher weight = higher priority for AI summarization |
 | `min_score` | Filter threshold: articles below this total weight are discarded (default: 5) |
 | `max_articles` | Max articles sent to Gemini in one prompt (default: 50) |
-| `gemini_model` | Model name (default: `gemini-1.5-flash`) |
+| `gemini_model` | Model name (default: `gemini-2.5-flash`) |
 | `rss_feeds` | RSS source name → URL mapping (MoneyDJ, TechNews, BBC Business/Tech) |
 | `scrape_targets` | Web scraping targets with CSS selectors or API URLs (鉅亨網, 工商時報) |
 | `newsapi` | NewsAPI.org settings: enabled flag, query string, language, sort order |
@@ -54,12 +55,13 @@ Changes to `config.yaml` take effect immediately on next run (no rebuild needed)
 
 | File | Purpose |
 |------|---------|
-| `src/main.py` | Pipeline orchestrator: fetch → filter → summarize → email. Entry point via `python -m src.main` |
+| `src/main.py` | Pipeline orchestrator: fetch (parallel) → filter → summarize → email. Entry point via `python -m src.main` |
 | `src/config.py` | Merges `config.yaml` (user settings) + environment variables (secrets) into a unified config interface |
 | `src/models.py` | `Article` and `FilteredArticle` dataclasses shared across all modules |
-| `src/filter.py` | Keyword-weighted scoring, URL deduplication (normalized), ranking by score descending |
+| `src/filter.py` | Time-based filtering (discard >2 days old), keyword-weighted scoring, URL deduplication, ranking by score descending |
 | `src/summarizer.py` | Builds Gemini prompt (articles first, instructions at end), calls `genai.Client().models.generate_content()` |
 | `src/email_sender.py` | Converts Gemini markdown output to inline-CSS HTML, renders Jinja2 template, sends via SMTP/TLS |
+| `src/fetchers/__init__.py` | Shared `create_session()` with retry logic (3 retries, backoff, handles 429/5xx) |
 | `src/fetchers/rss_fetcher.py` | feedparser-based RSS parsing for MoneyDJ, TechNews, BBC. Handles date parsing and HTML stripping |
 | `src/fetchers/web_scraper.py` | 鉅亨網 via public JSON API (`api.cnyes.com`), 工商時報 via BeautifulSoup HTML scraping |
 | `src/fetchers/newsapi_fetcher.py` | NewsAPI.org `/v2/everything` endpoint, keyword-based international news search |
@@ -69,19 +71,22 @@ Changes to `config.yaml` take effect immediately on next run (no rebuild needed)
 ## Architecture
 
 ```
-RSS/Web Sources → Local Keyword Filter → Gemini 1.5 Flash → Jinja2 HTML Email → SMTP
+RSS/Web Sources (parallel) → Time Filter → Keyword Filter → Gemini → Jinja2 HTML Email → SMTP
 ```
 
 ### Key Design Decisions
 
 - **Config split:** `config.yaml` for user-editable settings; `.env` for secrets
+- **Parallel fetching:** Three fetchers run concurrently via `ThreadPoolExecutor`
+- **HTTP retry:** Shared `requests.Session` with automatic retry (3 attempts, exponential backoff, 429/5xx)
+- **Stale article filtering:** Articles older than 2 days are discarded before keyword scoring
 - **Prompt strategy:** Articles placed first in prompt, instructions at the end (Gemini attention is strongest at context end)
 - **Reuters RSS discontinued:** Use NewsAPI to index Reuters content + BBC RSS as primary international source
 - **Anue (鉅亨網):** Uses public JSON API (`api.cnyes.com`) instead of scraping JS-rendered pages
-- **Docker volume mount:** `config.yaml` is mounted read-only, so changes take effect without rebuilding the image
-- **Fault tolerance:** Each fetcher is wrapped in try/except — one source failure does not crash the pipeline
+- **Fault tolerance:** Each fetcher is wrapped in try/except — one source failure does not crash the pipeline. Gemini failure still sends email with article links only.
+- **Timezone:** All user-facing timestamps use UTC+8 (Taiwan time) explicitly
 
-## Usage
+## Usage — Local (Docker)
 
 ```bash
 # 1. Copy templates and fill in your settings
@@ -117,6 +122,44 @@ tail -f /tmp/news_summary.log /tmp/news_summary.err
 # Unload schedule
 launchctl unload ~/Library/LaunchAgents/com.news.summary.plist
 ```
+
+## Usage — GitHub Actions (Cloud)
+
+GitHub Actions 可讓 pipeline 在雲端自動執行，不需要本機開機或安裝 Docker。
+
+### Step 1: 設定 GitHub Secrets
+
+到 GitHub repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**，新增以下 8 個 secrets：
+
+| Secret 名稱 | 說明 |
+|---|---|
+| `CONFIG_YAML` | `config.yaml` 的完整內容（整份貼上） |
+| `GEMINI_API_KEY` | Google Gemini API 金鑰 |
+| `NEWSAPI_KEY` | NewsAPI.org API 金鑰 |
+| `SMTP_HOST` | SMTP 伺服器（如 `smtp.gmail.com`） |
+| `SMTP_PORT` | SMTP 埠號（如 `587`） |
+| `SMTP_USER` | SMTP 登入帳號 |
+| `SMTP_PASSWORD` | SMTP 密碼（Gmail 建議使用應用程式密碼） |
+| `EMAIL_FROM` | 寄件人 email 地址 |
+
+### Step 2: 自動排程
+
+Workflow 已設定 cron 排程，push 到 GitHub 後自動生效：
+- 每天 **08:30** 台灣時間（UTC 00:30）
+- 每天 **18:00** 台灣時間（UTC 10:00）
+
+### Step 3: 手動觸發（測試用）
+
+1. 到 GitHub repo → **Actions** 分頁
+2. 左側選 **News Digest**
+3. 點右邊 **Run workflow** → **Run workflow**
+4. 查看執行 log 確認是否成功
+
+### 更新設定
+
+- **修改關鍵字、收件人等設定：** 更新 GitHub Secret `CONFIG_YAML` 的內容
+- **修改 API 金鑰或 SMTP 密碼：** 更新對應的 GitHub Secret
+- 所有 secret 更新後，下次執行自動生效，不需要其他操作
 
 ## Specification
 

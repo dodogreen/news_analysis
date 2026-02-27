@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 
 from src import config
@@ -29,11 +30,21 @@ def main() -> None:
     logger.info("=== Pipeline started ===")
 
     try:
-        # Step 1: Fetch from all sources
+        # Step 1: Fetch from all sources (in parallel)
         articles = []
-        articles += fetch_rss_feeds(config.RSS_FEEDS)
-        articles += scrape_news_sites(config.SCRAPE_TARGETS)
-        articles += fetch_newsapi_articles(config.NEWSAPI_CONFIG, config.NEWSAPI_KEY)
+        fetchers = [
+            ("RSS", lambda: fetch_rss_feeds(config.RSS_FEEDS)),
+            ("Scraper", lambda: scrape_news_sites(config.SCRAPE_TARGETS)),
+            ("NewsAPI", lambda: fetch_newsapi_articles(config.NEWSAPI_CONFIG, config.NEWSAPI_KEY)),
+        ]
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = {pool.submit(fn): name for name, fn in fetchers}
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    articles += future.result()
+                except Exception:
+                    logger.exception("Fetcher %s failed", name)
         logger.info("Total fetched: %d articles", len(articles))
 
         # Step 2: Filter and rank
@@ -47,7 +58,11 @@ def main() -> None:
 
         # Step 3: Summarize with Gemini
         if filtered:
-            summary = summarize_articles(filtered)
+            try:
+                summary = summarize_articles(filtered)
+            except Exception:
+                logger.exception("Gemini failed, sending digest with links only")
+                summary = "⚠️ AI 摘要生成失敗，請查看下方原始新聞連結。"
         else:
             summary = "今日無符合過濾條件的重大新聞。系統持續監控中。"
             logger.warning("No articles passed filter")

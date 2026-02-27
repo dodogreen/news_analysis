@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse, urlunparse
 
 from src.models import Article, FilteredArticle
@@ -33,16 +34,28 @@ def filter_and_rank(
     Returns:
         Filtered and ranked articles, highest score first.
     """
+    # Discard articles older than 2 days (keep those without a publish date)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=2)
+    fresh: list[Article] = []
+    stale_count = 0
+    for art in articles:
+        if art.published and art.published.tzinfo and art.published < cutoff:
+            stale_count += 1
+        else:
+            fresh.append(art)
+    if stale_count:
+        logger.info("Dropped %d stale articles (older than 2 days)", stale_count)
+
     # Deduplicate by normalized URL
     seen_urls: set[str] = set()
     unique: list[Article] = []
-    for art in articles:
+    for art in fresh:
         norm = _normalize_url(art.link)
         if norm not in seen_urls:
             seen_urls.add(norm)
             unique.append(art)
 
-    logger.info("Dedup: %d -> %d unique articles", len(articles), len(unique))
+    logger.info("Dedup: %d -> %d unique articles", len(fresh), len(unique))
 
     # Score each article
     results: list[FilteredArticle] = []

@@ -7,22 +7,14 @@ import time
 from datetime import datetime, timezone
 from urllib.parse import urljoin
 
-import requests
 from bs4 import BeautifulSoup
 
+from src.fetchers import create_session
 from src.models import Article
 
 logger = logging.getLogger(__name__)
 
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-}
-
+_session = create_session()
 _TIMEOUT = 15
 
 
@@ -37,7 +29,7 @@ def _fetch_anue(target: dict) -> list[Article]:
         return []
 
     params = {"limit": 30}
-    resp = requests.get(api_url, headers=_HEADERS, params=params, timeout=_TIMEOUT)
+    resp = _session.get(api_url, params=params, timeout=_TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
 
@@ -78,7 +70,7 @@ def _scrape_html(target: dict) -> list[Article]:
         logger.warning("Scrape target %s missing url or title_selector", name)
         return []
 
-    resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
+    resp = _session.get(url, timeout=_TIMEOUT)
     if resp.status_code != 200:
         logger.warning("Scrape %s returned HTTP %d, skipping", name, resp.status_code)
         return []
