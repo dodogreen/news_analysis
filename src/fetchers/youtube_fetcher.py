@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from dateutil import parser as dateparser
 from googleapiclient.discovery import build
@@ -36,6 +36,11 @@ def fetch_channel_videos(
 
     youtube = build("youtube", "v3", developerKey=api_key)
 
+    # Only fetch videos published today (UTC+8)
+    tw_tz = timezone(timedelta(hours=8))
+    today_start = datetime.now(tw_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    published_after = today_start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     response = (
         youtube.search()
         .list(
@@ -44,6 +49,7 @@ def fetch_channel_videos(
             order="date",
             type="video",
             maxResults=max_videos,
+            publishedAfter=published_after,
         )
         .execute()
     )
@@ -69,5 +75,6 @@ def fetch_channel_videos(
             published=published,
         ))
 
-    logger.info("YouTube %s: fetched %d videos", channel_name, len(videos))
+    videos = videos[:max_videos]
+    logger.info("YouTube %s: fetched %d videos (today only, after %s)", channel_name, len(videos), published_after)
     return videos

@@ -68,8 +68,8 @@ def _gemini_stt(audio_path: Path, stt_model: str) -> str:
                         file_uri=uploaded.uri,
                         mime_type="audio/mpeg",
                     ),
-                    types.Part.from_text(
-                        "請將這段音訊完整轉錄為文字。只輸出轉錄文字，不需要加時間戳記或說話者標記。"
+                    types.Part(
+                        text="請將這段音訊完整轉錄為文字。只輸出轉錄文字，不需要加時間戳記或說話者標記。",
                     ),
                 ]
             )
