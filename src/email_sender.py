@@ -12,7 +12,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from src import config
-from src.models import FilteredArticle
+from src.models import FilteredArticle, Video
 
 logger = logging.getLogger(__name__)
 
@@ -127,3 +127,66 @@ def send_email(html_body: str, subject: str) -> None:
         )
 
     logger.info("Email sent to %s", ", ".join(config.EMAIL_RECIPIENTS))
+
+
+def render_video_email(
+    video_summaries: list[tuple[Video, str]],
+    show_name: str,
+    summary_model: str,
+    date: str,
+) -> str:
+    """Render the video digest HTML email.
+
+    Args:
+        video_summaries: List of (Video, markdown_summary) tuples.
+        show_name: YouTube show/channel name.
+        summary_model: Model name used for summarization.
+        date: Formatted date string.
+
+    Returns:
+        Complete HTML email body.
+    """
+    env = Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=False)
+    template = env.get_template("video_digest.html")
+
+    rendered_summaries = [
+        (video, _markdown_to_html(summary))
+        for video, summary in video_summaries
+    ]
+
+    return template.render(
+        show_name=show_name,
+        date=date,
+        video_summaries=rendered_summaries,
+        model=summary_model,
+    )
+
+
+def send_email_to(html_body: str, subject: str, recipients: list[str]) -> None:
+    """Send HTML email to specific recipients via SMTP/TLS.
+
+    Args:
+        html_body: Rendered HTML content.
+        subject: Email subject line.
+        recipients: List of recipient email addresses.
+    """
+    if not recipients:
+        logger.warning("No recipients specified, skipping send")
+        return
+
+    if not config.SMTP_USER or not config.SMTP_PASSWORD:
+        logger.error("SMTP credentials not configured (check .env)")
+        raise RuntimeError("SMTP credentials missing")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = config.EMAIL_FROM
+    msg["To"] = ", ".join(recipients)
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT) as server:
+        server.starttls()
+        server.login(config.SMTP_USER, config.SMTP_PASSWORD)
+        server.sendmail(config.EMAIL_FROM, recipients, msg.as_string())
+
+    logger.info("Email sent to %s", ", ".join(recipients))

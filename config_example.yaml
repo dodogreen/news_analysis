@@ -3,6 +3,10 @@
 # 修改此檔後無需重新 build Docker image，直接 run 即可生效
 # =============================================================================
 
+# 新聞摘要開關（設為 false 可只跑 YouTube 摘要）
+news:
+  enabled: true
+
 # 關鍵字與權重（分數越高越優先送入 AI 摘要）
 keywords:
   台積電: 10
@@ -74,6 +78,32 @@ email:
 schedule_times:
   - "08:30"
   - "18:00"
+
+# YouTube 影片摘要（需在 .env 中設定 YOUTUBE_API_KEY）
+youtube:
+  enabled: false
+  stt_model: "gemini-2.5-flash"          # 全域預設語音辨識模型
+  summary_model: "gemini-2.5-flash"       # 全域預設摘要模型
+  summary_prompt: |                       # 全域預設摘要 prompt
+    你是一位資深財經分析師。請分析以下影片逐字稿，產出精簡摘要。
+    要求：提煉 3-5 個核心觀點、標註重要股票代號、使用繁體中文、markdown 格式。
+  email:                                  # 全域預設 email 設定
+    recipients:
+      - user1@example.com
+    subject_prefix: "[影片摘要]"
+  shows:
+    - name: "範例頻道"
+      channel_id: "UC..."                 # YouTube 頻道 ID
+      max_videos: 3                       # 每次抓幾部最新影片
+      schedule_times:                     # 該節目的獨立排程
+        - "09:00"
+      # 以下為可選覆蓋設定（不設則使用全域預設）：
+      # stt_model: "gemini-2.5-pro"
+      # summary_model: "gemini-2.5-pro"
+      # summary_prompt: "自訂 prompt..."
+      # email:
+      #   recipients: ["vip@example.com"]
+      #   subject_prefix: "[自訂前綴]"
 
 # AI 摘要分類
 categories:

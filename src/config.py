@@ -17,6 +17,9 @@ def _load_yaml() -> dict:
 
 _cfg = _load_yaml()
 
+# --- News pipeline toggle ---
+NEWS_ENABLED: bool = _cfg.get("news", {}).get("enabled", True)
+
 # --- Keywords & filtering ---
 KEYWORDS: dict[str, int] = _cfg.get("keywords", {})
 MIN_SCORE: int = _cfg.get("min_score", 5)
@@ -40,6 +43,13 @@ SMTP_PASSWORD: str = os.environ.get("SMTP_PASSWORD", "")
 EMAIL_FROM: str = os.environ.get("EMAIL_FROM", SMTP_USER)
 EMAIL_RECIPIENTS: list[str] = _cfg.get("email", {}).get("recipients", [])
 EMAIL_SUBJECT_PREFIX: str = _cfg.get("email", {}).get("subject_prefix", "[金融情報]")
+
+# --- YouTube ---
+YOUTUBE_CONFIG: dict = _cfg.get("youtube", {})
+YOUTUBE_API_KEY: str = os.environ.get("YOUTUBE_API_KEY", "")
+
+# --- Schedule ---
+SCHEDULE_TIMES: list[str] = _cfg.get("schedule_times", [])
 
 # --- AI categories ---
 CATEGORIES: list[str] = _cfg.get("categories", [

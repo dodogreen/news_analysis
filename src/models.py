@@ -22,3 +22,13 @@ class FilteredArticle:
     published: datetime | None = None
     score: float = 0.0
     matched_keywords: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Video:
+    title: str
+    video_id: str
+    channel: str
+    url: str
+    published: datetime | None = None
+    transcript: str = ""
