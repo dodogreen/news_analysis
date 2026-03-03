@@ -35,18 +35,28 @@ def _is_manual_trigger() -> bool:
     return os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
 
 
-def _current_time_hhmm() -> str:
-    """Return current UTC+8 time as HH:MM string."""
-    return datetime.now(_TW_TZ).strftime("%H:%M")
-
-
 def _should_run_schedule(schedule_times: list[str]) -> bool:
-    """Check if current time matches any scheduled time."""
+    """Check if current time is within ±15 min of any scheduled time.
+
+    GitHub Actions cron can be delayed by 5-20 minutes, so exact HH:MM
+    matching is unreliable. We use a 15-minute window instead.
+    """
     if _is_manual_trigger():
         return True
     if not schedule_times:
         return True
-    return _current_time_hhmm() in schedule_times
+
+    now = datetime.now(_TW_TZ)
+    for time_str in schedule_times:
+        try:
+            h, m = map(int, time_str.split(":"))
+            scheduled = now.replace(hour=h, minute=m, second=0, microsecond=0)
+            diff = abs((now - scheduled).total_seconds())
+            if diff <= 900:  # 15 minutes
+                return True
+        except (ValueError, TypeError):
+            continue
+    return False
 
 
 # ---------------------------------------------------------------------------
