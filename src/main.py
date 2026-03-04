@@ -47,14 +47,21 @@ def _should_run_schedule(schedule_times: list[str]) -> bool:
         return True
 
     now = datetime.now(_TW_TZ)
-    for time_str in schedule_times:
+    for time_val in schedule_times:
         try:
-            h, m = map(int, time_str.split(":"))
+            # YAML may parse "08:30" as int 510 if unquoted; handle both
+            ts = str(time_val)
+            if ":" in ts:
+                h, m = map(int, ts.split(":"))
+            else:
+                # Integer minutes (e.g. 510 = 08:30, 1080 = 18:00)
+                total_min = int(time_val)
+                h, m = divmod(total_min, 60)
             scheduled = now.replace(hour=h, minute=m, second=0, microsecond=0)
             diff = abs((now - scheduled).total_seconds())
             if diff <= 900:  # 15 minutes
                 return True
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             continue
     return False
 
