@@ -35,34 +35,37 @@ def _is_manual_trigger() -> bool:
     return os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
 
 
-def _should_run_schedule(schedule_times: list[str]) -> bool:
-    """Check if current time is within ±15 min of any scheduled time.
+def _parse_schedule_hour(time_val) -> int | None:
+    """Parse a schedule time value and return the hour (0-23)."""
+    try:
+        ts = str(time_val)
+        if ":" in ts:
+            return int(ts.split(":")[0])
+        else:
+            # YAML may parse "08:30" as int 510 if unquoted
+            total_min = int(time_val)
+            return total_min // 60
+    except (ValueError, TypeError, AttributeError):
+        return None
 
-    GitHub Actions cron can be delayed by 5-20 minutes, so exact HH:MM
-    matching is unreliable. We use a 15-minute window instead.
+
+def _should_run_schedule(schedule_times: list) -> bool:
+    """Check if current hour (UTC+8) matches any scheduled hour.
+
+    GitHub Actions cron can be delayed by 20+ minutes, making exact
+    minute matching unreliable. We match by hour only. The workflow
+    cron runs once per hour to guarantee exactly one trigger per hour.
     """
     if _is_manual_trigger():
         return True
     if not schedule_times:
         return True
 
-    now = datetime.now(_TW_TZ)
+    current_hour = datetime.now(_TW_TZ).hour
     for time_val in schedule_times:
-        try:
-            # YAML may parse "08:30" as int 510 if unquoted; handle both
-            ts = str(time_val)
-            if ":" in ts:
-                h, m = map(int, ts.split(":"))
-            else:
-                # Integer minutes (e.g. 510 = 08:30, 1080 = 18:00)
-                total_min = int(time_val)
-                h, m = divmod(total_min, 60)
-            scheduled = now.replace(hour=h, minute=m, second=0, microsecond=0)
-            diff = abs((now - scheduled).total_seconds())
-            if diff <= 900:  # 15 minutes
-                return True
-        except (ValueError, TypeError, AttributeError):
-            continue
+        h = _parse_schedule_hour(time_val)
+        if h is not None and h == current_hour:
+            return True
     return False
 
 

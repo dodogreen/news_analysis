@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -11,6 +12,12 @@ from google import genai
 from google.genai import types
 
 logger = logging.getLogger(__name__)
+
+_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
+)
 
 
 def _get_subtitle(video_id: str) -> str | None:
@@ -28,6 +35,17 @@ def _get_subtitle(video_id: str) -> str | None:
         return None
 
 
+def _find_js_runtime() -> str | None:
+    """Find available JavaScript runtime for yt-dlp.
+
+    yt-dlp supports: deno, node, bun, quickjs (NOT 'nodejs').
+    """
+    for runtime in ["deno", "node", "bun", "quickjs"]:
+        if shutil.which(runtime):
+            return runtime
+    return None
+
+
 def _download_audio(video_id: str, output_dir: str) -> Path:
     """Download audio from YouTube video using yt-dlp."""
     url = f"https://www.youtube.com/watch?v={video_id}"
@@ -41,9 +59,24 @@ def _download_audio(video_id: str, output_dir: str) -> Path:
         "--output", str(output_path.with_suffix(".%(ext)s")),
         "--no-playlist",
         "--quiet",
-        url,
+        "--user-agent", _USER_AGENT,
+        "--extractor-args", "youtube:player_client=web",
+        "--no-check-certificates",
     ]
-    subprocess.run(cmd, check=True, timeout=300)
+
+    # Enable JS runtime + challenge solver (needed for YouTube bot challenges)
+    js_runtime = _find_js_runtime()
+    if js_runtime:
+        cmd.extend(["--js-runtimes", js_runtime])
+        cmd.extend(["--remote-components", "ejs:github"])
+        logger.info("Using JS runtime: %s with EJS challenge solver", js_runtime)
+
+    cmd.append(url)
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    if result.returncode != 0:
+        logger.error("yt-dlp stderr: %s", result.stderr.strip())
+        result.check_returncode()
 
     if not output_path.exists():
         raise FileNotFoundError(f"Audio file not found: {output_path}")

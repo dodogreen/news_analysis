@@ -2,7 +2,7 @@ name: News Digest
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '15 * * * *'  # Run at :15 every hour, Python checks schedule by hour
   workflow_dispatch: # 手動觸發，全部執行
 
 jobs:
