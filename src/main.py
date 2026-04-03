@@ -49,22 +49,45 @@ def _parse_schedule_hour(time_val) -> int | None:
         return None
 
 
-def _should_run_schedule(schedule_times: list) -> bool:
-    """Check if current hour (UTC+8) matches any scheduled hour.
+def _get_scheduled_tw_hour() -> int | None:
+    """Derive the intended UTC+8 hour from the cron expression that triggered this run.
 
-    GitHub Actions cron can be delayed by 20+ minutes, making exact
-    minute matching unreliable. We match by hour only. The workflow
-    cron runs once per hour to guarantee exactly one trigger per hour.
+    GitHub Actions passes the cron expression via SCHEDULE_CRON env var.
+    Even if the run is delayed by hours, this tells us what time it was
+    scheduled for, so schedule matching is reliable.
+    """
+    cron = os.environ.get("SCHEDULE_CRON", "")
+    if not cron:
+        return None
+    parts = cron.split()
+    if len(parts) >= 2:
+        try:
+            utc_hour = int(parts[1])
+            return (utc_hour + 8) % 24
+        except ValueError:
+            return None
+    return None
+
+
+def _should_run_schedule(schedule_times: list) -> bool:
+    """Check if the scheduled UTC+8 hour matches any configured schedule time.
+
+    Uses the cron expression that triggered this run (SCHEDULE_CRON env var),
+    not datetime.now(), to avoid issues with GitHub Actions cron delays.
     """
     if _is_manual_trigger():
         return True
     if not schedule_times:
         return True
 
-    current_hour = datetime.now(_TW_TZ).hour
+    scheduled_tw_hour = _get_scheduled_tw_hour()
+    if scheduled_tw_hour is None:
+        # Not triggered by a known cron — run everything
+        return True
+
     for time_val in schedule_times:
         h = _parse_schedule_hour(time_val)
-        if h is not None and h == current_hour:
+        if h is not None and h == scheduled_tw_hour:
             return True
     return False
 
