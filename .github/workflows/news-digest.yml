@@ -17,21 +17,20 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - run: pip install -r requirements.txt
+      # Installs Infisical CLI, authenticates, pulls all secrets into $GITHUB_ENV,
+      # writes config.yaml, and installs Python dependencies.
+      # Only INFISICAL_CLIENT_ID / _SECRET / _PROJECT_ID need to be GitHub Secrets.
+      - name: Setup cloud environment (Infisical)
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: bash scripts/setup_cloud.sh
 
-      - name: Create config.yaml from secret
-        run: echo "${{ secrets.CONFIG_YAML }}" > config.yaml
-
+      # All secrets from Infisical are now available as env vars (via $GITHUB_ENV).
+      # The pipeline reads GEMINI_API_KEY, NEWSAPI_KEY, SMTP_*, etc. from the environment.
       - name: Run pipeline
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           SCHEDULE_CRON: ${{ github.event.schedule }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: python -m src.main
